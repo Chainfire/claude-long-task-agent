@@ -32,6 +32,12 @@ Tell Claude Code:
 Clone the repo at https://github.com/Chainfire/claude-long-task-agent to a temporary directory, and follow the instructions from the "INSTRUCTIONS FOR CLAUDE" section
 ```
 
+Note that Claude generally won't pick this sub-agent on its own: it prefers the general-purpose agent. You need to tell it to use `long-task-sub`, either in your session, or permanently through `CLAUDE.md` or Claude's memory. For example:
+
+```
+Use the long-task-sub agent instead of the general-purpose agent for any sub-agent task that may run longer than a few minutes.
+```
+
 ## INSTRUCTIONS FOR CLAUDE
 
 - Check whether `CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL` is set to `1h` in the user's Claude Code configuration (usually the `env` block of `~/.claude/settings.json`) or environment. If not, offer to set it, explaining how it may affect costs (see ABOUT). Abort the installation if the user declines. If you do change it to `1h`, the user must restart the Claude Code session before continuing.
