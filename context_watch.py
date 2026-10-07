@@ -181,26 +181,22 @@ def main():
     # The state file wins over the command line, so --set can retune a running
     # agent. Unknown keys are kept as they are.
     state = STATE_DIR / f"{key}.json"
-    data = load(state) or {}
-    defaults = DEFAULTS | given | {"step": -1, "misses": 0}
-    before = dict(data)
-    data = defaults | data
-    capped = apply_cap(data)
-    dirty = data != before
+    data = DEFAULTS | given | {"step": -1, "misses": 0} | (load(state) or {})
+    notes = [f"CONTEXT MONITOR WARNING: {w}" for w in apply_cap(data)]
     first, every, limit = data["first"], data["every"], data["max"]
-    notes = [f"CONTEXT MONITOR WARNING: {w}" for w in capped]
+    # Saved on every call, so save() never prunes the state of a live agent.
+    data["last_seen"] = int(time.time())
 
     ctx = last_context(transcript)
     if ctx is None:
         data["misses"] = int(data["misses"]) + 1
+        save(state, data)
         if data["misses"] >= MAX_MISSES:
             where = transcript if transcript.exists() else f"{transcript} (file not found)"
             raise RuntimeError(f"no assistant usage found in {where} "
                                f"({data['misses']} tool calls in a row)")
-        save(state, data)
         return emit(notes)
-    if data["misses"]:
-        data["misses"], dirty = 0, True
+    data["misses"] = 0
 
     last = int(data["step"])
     if ctx < first:
@@ -209,11 +205,9 @@ def main():
         step = None
     else:
         step = (ctx - first) // every
-
-    if step is not None and step != last:  # new step, or lower after compaction
-        data["step"], dirty = step, True
-    if dirty:
-        save(state, data)
+    if step is not None:  # new step, or lower after compaction
+        data["step"] = step
+    save(state, data)
     if step is not None and step <= last:
         return emit(notes)
 

@@ -14,7 +14,7 @@ There are three parts to this sub-agent:
 
 - **Context monitor.** Through a `PostToolUse` hook, `context_watch.py` runs after every tool call and reads the sub-agent's current context size from its transcript. At 175K tokens the sub-agent is told to write a hand-off document at the next safe point, so a fresh agent can take over its work. This message is repeated every 25K tokens, and from 700K tokens on it changes, on every tool call, to tell the sub-agent it must hand off immediately. The parent agent can adjust these limits for a running sub-agent (the command is in the agent's description in `long-task-sub.md`). Once the sub-agent reports the path of its hand-off document, the parent stops it and starts a fresh `long-task-sub` with "Continue the work described in <path>".
 
-Hand-off documents are written to `<repo>/.claude/handoffs/<agentId>.md` when working inside a git repository (you may want to add that directory to `.gitignore`), or to `~/.claude/handoffs/<sessionId>/<agentId>.md` otherwise. Per-agent monitor state is kept in `~/.cache/claude-context-watch/` and cleaned up after 2 days.
+Hand-off documents are written to `<repo>/.claude/handoffs/<agentId>.md` when working inside a git repository (you may want to add that directory to `.gitignore`), or to `~/.claude/handoffs/<sessionId>/<agentId>.md` otherwise. Per-agent monitor state is kept in `~/.cache/claude-context-watch/` and cleaned up 2 days after the agent's last tool call.
 
 **YOUR MILEAGE MAY VARY**. It might drain your subscription faster for your specific use-case. Do not blindly assume my experience fits yours. **USE AT YOUR OWN RISK**.
 
