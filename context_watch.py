@@ -33,14 +33,16 @@ HARD_LIMIT = 850_000  # higher thresholds are capped to this, with a warning
 DEFAULTS = {"first": 175_000, "every": 25_000, "max": 700_000}
 
 SAFE_POINT = "no half-edited files, no orphaned processes, nothing left mid-change"
-CLEANUP = ("Before you write it, clean up: stop every heartbeat, monitor and background shell you started "
-           "(TaskStop), so nothing can wake you after you exit. Jobs that must keep running must be detached "
-           "from your own shells (not tied to a Bash run_in_background launcher); list them in the handoff "
-           "with names, PIDs and log paths. Once you have exited, never edit the handoff again: send any "
-           "later correction to your managing agent instead.")
-FRESH_AGENT = "It must let a fresh agent continue your work without access to your transcript."
-REPORT = ("Tell your managing agent the full path of that document and that you are "
-          "exiting, and exit.")
+CLEANUP = ("Once there, clean up: stop every heartbeat, monitor and background shell you started "
+           "(TaskStop), so nothing can wake you after you exit. Jobs that must keep running must be "
+           "detached from your own shells (not tied to a Bash run_in_background launcher).")
+FRESH_AGENT = ("It must let a fresh agent continue your work without access to your transcript. "
+               "Use the sections Goal; State (done, in progress, next steps); Key files and commands; "
+               "Gotchas and decisions made. List any jobs you left running with names, PIDs and log "
+               "paths. If you continued from an earlier handoff, end with \"Previous handoff: <path>\".")
+REPORT = ("Then tell your managing agent the full path of that document and that you are "
+          "exiting, and exit. Once you have exited, never edit the handoff again: send any "
+          "later correction to your managing agent instead.")
 
 
 def tokens(s):
@@ -241,12 +243,12 @@ def main():
     if step is None:
         msg = (f"NOTICE — CONTEXT LIMIT REACHED: Your context is now {k} tokens. Hand off now. "
                "Start no new work; finish only the step you are in until you reach a safe point "
-               f"({SAFE_POINT}). {CLEANUP} Then write "
-               f"the handoff document to {path}. {FRESH_AGENT} {REPORT}")
+               f"({SAFE_POINT}). {CLEANUP} Then write a handoff document to {path}. "
+               f"{FRESH_AGENT} {REPORT}")
     else:
         msg = (f"NOTICE: Your context is now {k} tokens. Unless handing off would cause "
-               f"problems, at the next safe point ({SAFE_POINT}) write a handoff document to "
-               f"{path}. {FRESH_AGENT} {CLEANUP} {REPORT}")
+               f"problems, hand off at the next safe point ({SAFE_POINT}). {CLEANUP} "
+               f"Then write a handoff document to {path}. {FRESH_AGENT} {REPORT}")
     emit(notes + [msg])
 
 
