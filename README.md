@@ -48,6 +48,10 @@ Use the long-task-sub agent instead of the general-purpose agent for any sub-age
 
 - Offer the user a test run to make sure everything works as expected. Keep it cheap: run the agent on Sonnet (its default; don't use Haiku, which doesn't follow the agent's instructions reliably enough) with greatly reduced limits so the notices fire quickly (for example `--first 40K --every 10K --max 80K`, applied with `--set` once the agent is running), and a short heartbeat (`heartbeat.py 1` sleeps 1 minute). Check that the heartbeat wakes the agent, that the hand-off notices arrive, and that the hand-off document is written to the expected path.
 
+## NOTES
+
+The context monitor reads the sub-agent's context size from its transcript file, whose format Claude Code does not document, so a Claude Code update may break it. If that happens, the sub-agent gets a `CONTEXT MONITOR FAILURE` after every tool call and passes it up to you, so the monitor never stops working silently.
+
 ## LICENSE
 
 MIT, see [LICENSE](LICENSE).
