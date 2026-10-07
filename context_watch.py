@@ -81,7 +81,10 @@ def last_context(path):
             for line in reversed(lines):
                 if b'"usage"' not in line or b'"assistant"' not in line:
                     continue
-                rec = json.loads(line)
+                try:
+                    rec = json.loads(line)
+                except json.JSONDecodeError:  # last line still being appended
+                    continue
                 u = (rec.get("message") or {}).get("usage") if rec.get("type") == "assistant" else None
                 if not u:
                     continue
