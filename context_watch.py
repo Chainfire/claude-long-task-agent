@@ -17,7 +17,13 @@ import os
 import subprocess
 import sys
 import time
+from contextlib import contextmanager
 from pathlib import Path
+
+try:
+    import fcntl
+except ImportError:  # not on Windows; state updates are then unlocked
+    fcntl = None
 
 STATE_DIR = Path.home() / ".cache" / "claude-context-watch"
 CHUNK = 256 * 1024
@@ -132,6 +138,22 @@ def save(path, data):
             pass
 
 
+@contextmanager
+def locked():
+    """Serialize load-modify-save of state files across hooks and --set, so a
+    parallel tool call's hook can't overwrite a --set made in between."""
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    if fcntl is None:
+        yield
+        return
+    fd = os.open(STATE_DIR, os.O_RDONLY)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        os.close(fd)
+
+
 def handoff_path(cwd, session_id, key):
     try:
         r = subprocess.run(["git", "-C", cwd, "rev-parse", "--show-toplevel"],
@@ -157,14 +179,15 @@ def main():
 
     if a.set:
         state = STATE_DIR / f"{a.set}.json"
-        data = load(state)
-        if data is None:
-            print(f"note: no state for {a.set} yet; creating it", file=sys.stderr)
-            data = dict(DEFAULTS)
-        data |= given | {"step": -1, "misses": 0}
-        for w in apply_cap(data):
-            print(f"warning: {w}", file=sys.stderr)
-        save(state, data)
+        with locked():
+            data = load(state)
+            if data is None:
+                print(f"note: no state for {a.set} yet; creating it", file=sys.stderr)
+                data = dict(DEFAULTS)
+            data |= given | {"step": -1, "misses": 0}
+            for w in apply_cap(data):
+                print(f"warning: {w}", file=sys.stderr)
+            save(state, data)
         print(json.dumps(data, indent=2))
         return
 
@@ -178,36 +201,38 @@ def main():
     else:  # main thread (--agent); not the intended use, but keep working
         transcript, key = Path(hook["transcript_path"]), session_id
 
+    ctx = last_context(transcript)
+
     # The state file wins over the command line, so --set can retune a running
     # agent. Unknown keys are kept as they are.
     state = STATE_DIR / f"{key}.json"
-    data = DEFAULTS | given | {"step": -1, "misses": 0} | (load(state) or {})
-    notes = [f"CONTEXT MONITOR WARNING: {w}" for w in apply_cap(data)]
-    first, every, limit = data["first"], data["every"], data["max"]
-    # Saved on every call, so save() never prunes the state of a live agent.
-    data["last_seen"] = int(time.time())
+    with locked():
+        data = DEFAULTS | given | {"step": -1, "misses": 0} | (load(state) or {})
+        notes = [f"CONTEXT MONITOR WARNING: {w}" for w in apply_cap(data)]
+        first, every, limit = data["first"], data["every"], data["max"]
+        # Saved on every call, so save() never prunes the state of a live agent.
+        data["last_seen"] = int(time.time())
 
-    ctx = last_context(transcript)
-    if ctx is None:
-        data["misses"] = int(data["misses"]) + 1
+        if ctx is None:
+            data["misses"] = int(data["misses"]) + 1
+            save(state, data)
+            if data["misses"] >= MAX_MISSES:
+                where = transcript if transcript.exists() else f"{transcript} (file not found)"
+                raise RuntimeError(f"no assistant usage found in {where} "
+                                   f"({data['misses']} tool calls in a row)")
+            return emit(notes)
+        data["misses"] = 0
+
+        last = int(data["step"])
+        if ctx < first:
+            step = -1
+        elif ctx >= limit:
+            step = None
+        else:
+            step = (ctx - first) // every
+        if step is not None:  # new step, or lower after compaction
+            data["step"] = step
         save(state, data)
-        if data["misses"] >= MAX_MISSES:
-            where = transcript if transcript.exists() else f"{transcript} (file not found)"
-            raise RuntimeError(f"no assistant usage found in {where} "
-                               f"({data['misses']} tool calls in a row)")
-        return emit(notes)
-    data["misses"] = 0
-
-    last = int(data["step"])
-    if ctx < first:
-        step = -1
-    elif ctx >= limit:
-        step = None
-    else:
-        step = (ctx - first) // every
-    if step is not None:  # new step, or lower after compaction
-        data["step"] = step
-    save(state, data)
     if step is not None and step <= last:
         return emit(notes)
 
