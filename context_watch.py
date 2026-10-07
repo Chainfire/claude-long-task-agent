@@ -14,6 +14,7 @@ Only the given values change; step and misses are reset.
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -53,6 +54,13 @@ def tokens(s):
     if n <= 0:
         raise argparse.ArgumentTypeError(f"must be positive: {s}")
     return n
+
+
+def ident(s):
+    """An agent or session id, which becomes part of file paths."""
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", s):
+        raise argparse.ArgumentTypeError(f"invalid id: {s!r}")
+    return s
 
 
 def apply_cap(data):
@@ -175,7 +183,7 @@ def main():
     ap.add_argument("--first", type=tokens)
     ap.add_argument("--every", type=tokens)
     ap.add_argument("--max", type=tokens)
-    ap.add_argument("--set", metavar="AGENT_ID",
+    ap.add_argument("--set", metavar="AGENT_ID", type=ident,
                     help="update that agent's state with the given values instead of running as a hook")
     a = ap.parse_args()
     given = {k: v for k in DEFAULTS if (v := getattr(a, k)) is not None}
@@ -195,11 +203,11 @@ def main():
         return
 
     hook = json.load(sys.stdin)
-    session_id = hook["session_id"]
+    session_id = ident(hook["session_id"])
     agent_id = hook.get("agent_id")
     if agent_id:
         transcript = (Path(hook["transcript_path"]).parent / session_id / "subagents"
-                      / f"agent-{agent_id}.jsonl")
+                      / f"agent-{ident(agent_id)}.jsonl")
         key = agent_id
     else:  # main thread (--agent); not the intended use, but keep working
         transcript, key = Path(hook["transcript_path"]), session_id
