@@ -40,7 +40,7 @@ REPORT = ("Tell your managing agent the full path of that document and that you 
 def tokens(s):
     s = s.strip().upper()
     mult = {"K": 1_000, "M": 1_000_000}.get(s[-1:], 0)
-    n = int(float(s[:-1]) * mult) if mult else int(s)
+    n = int(float(s[:-1]) * mult) if mult else int(float(s))  # float: a hand-edited "175000.0"
     if n <= 0:
         raise argparse.ArgumentTypeError(f"must be positive: {s}")
     return n
