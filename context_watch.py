@@ -36,6 +36,7 @@ SAFE_POINT = "no half-edited files, no orphaned processes, nothing left mid-chan
 CLEANUP = ("Once there, clean up: stop every heartbeat, monitor and background shell you started "
            "(TaskStop), so nothing can wake you after you exit. Jobs that must keep running must be "
            "detached from your own shells (not tied to a Bash run_in_background launcher).")
+# The handoff sections repeat long-task-sub.md's "Context monitoring" section; keep both in sync.
 FRESH_AGENT = ("It must let a fresh agent continue your work without access to your transcript. "
                "Use the sections Goal; State (done, in progress, next steps); Key files and commands; "
                "Gotchas and decisions made. List any jobs you left running with names, PIDs and log "
