@@ -133,9 +133,13 @@ def save(path, data):
 
 
 def handoff_path(cwd, session_id, key):
-    r = subprocess.run(["git", "-C", cwd, "rev-parse", "--show-toplevel"],
-                       capture_output=True, text=True)
-    base = (Path(r.stdout.strip()) / ".claude" / "handoffs" if r.returncode == 0
+    try:
+        r = subprocess.run(["git", "-C", cwd, "rev-parse", "--show-toplevel"],
+                           capture_output=True, text=True)
+        repo = r.returncode == 0
+    except OSError:  # no git on PATH: treat as not a repository
+        repo = False
+    base = (Path(r.stdout.strip()) / ".claude" / "handoffs" if repo
             else Path.home() / ".claude" / "handoffs" / session_id)
     base.mkdir(parents=True, exist_ok=True)
     return base / f"{key}.md"
