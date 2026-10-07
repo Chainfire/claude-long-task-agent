@@ -66,8 +66,15 @@ def apply_cap(data):
 
 
 def last_context(path):
-    """Context size of the newest assistant turn, reading the file backwards."""
-    with open(path, "rb") as f:
+    """Context size of the newest assistant turn, reading the file backwards.
+
+    None if there is none yet, or the transcript doesn't exist (yet).
+    """
+    try:
+        f = open(path, "rb")
+    except FileNotFoundError:
+        return None
+    with f:
         end = f.seek(0, os.SEEK_END)
         buf = b""
         while end > 0:
@@ -183,7 +190,8 @@ def main():
     if ctx is None:
         data["misses"] = int(data["misses"]) + 1
         if data["misses"] >= MAX_MISSES:
-            raise RuntimeError(f"no assistant usage found in {transcript} "
+            where = transcript if transcript.exists() else f"{transcript} (file not found)"
+            raise RuntimeError(f"no assistant usage found in {where} "
                                f"({data['misses']} tool calls in a row)")
         save(state, data)
         return emit(notes)
